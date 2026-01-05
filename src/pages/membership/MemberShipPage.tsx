@@ -17,8 +17,17 @@ import {
   Clock,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getCurrentSubscription } from "@/api/services/subscriptionService";
+import {
+  cancelSubscription,
+  createPortal,
+  getCurrentSubscription,
+  resumeSubscription,
+} from "@/api/services/subscriptionService";
 import type { ISubscription } from "@/types/subscription.type";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/auth-context";
+import { getProfile } from "@/api/services/userService";
 
 const formatDate = (date?: Date) => {
   if (!date) return "N/A";
@@ -67,18 +76,49 @@ const getPlanTypeColor = (type?: string) => {
 
 export default function MembershipPage() {
   const [subscription, setSubscription] = useState<ISubscription | null>(null);
-    console.log('check',subscription?.currentPeriodStart)
+  const { user, persistUser } = useAuth();
+  const fetchSubscription = async () => {
+    try {
+      const res = await getCurrentSubscription();
+      if (res.success) {
+        setSubscription(res.data);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await getCurrentSubscription();
-        if (res.success) {
-          console.log(res.data);
-          setSubscription(res.data);
-        }
-      } catch (error) {}
-    })();
+    fetchSubscription();
   }, []);
+
+  const cancelSubscriptionFun = async () => {
+    try {
+      const res = await cancelSubscription(false);
+      if (res.success) {
+        await fetchSubscription();
+        const res = await getProfile();
+        persistUser({ ...res.data, token: user?.token! });
+      }
+    } catch (error) {}
+  };
+  const resumeSubscriptionFun = async () => {
+    try {
+      const res = await resumeSubscription();
+      if (res.success) {
+        await fetchSubscription();
+        const res = await getProfile();
+        persistUser({ ...res.data, token: user?.token! });
+      }
+    } catch (error) {}
+  };
+  const handlingBilling = async () => {
+    try {
+      const res = await createPortal(window.location.href);
+      if (res.success) {
+         window.location.href = res.data.url
+      }
+    } catch (error) {}
+  };
   return (
     <>
       {subscription && (
@@ -89,9 +129,17 @@ export default function MembershipPage() {
               <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-2">
                 Membership Dashboard
               </h1>
-              <p className="text-lg text-muted-foreground">
-                Manage your subscription and account details
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-lg text-muted-foreground">
+                  Manage your subscription and account details
+                </p>
+                <button
+                  onClick={handlingBilling}
+                  className="underline text-gray-500 cursor-pointer"
+                >
+                  Manage Billing
+                </button>
+              </div>
             </div>
 
             {/* Status Overview */}
@@ -106,13 +154,31 @@ export default function MembershipPage() {
                 </CardHeader>
                 <CardContent>
                   {subscription.status && (
-                    <Badge
-                      className={`${getStatusBadgeColor(
-                        subscription.status
-                      )} border capitalize`}
-                    >
-                      {subscription.status}
-                    </Badge>
+                    <>
+                      <Badge
+                        className={`${getStatusBadgeColor(
+                          subscription.status
+                        )} border capitalize`}
+                      >
+                        {subscription.status}
+                      </Badge>
+                      {subscription.status === "active" &&
+                      user?.cancelAtPeriodEnd ? (
+                        <button
+                          onClick={resumeSubscriptionFun}
+                          className="cursor-pointer text-xs bg-green-500 text-foreground px-2 ml-2 py-1 rounded-full"
+                        >
+                          Resume
+                        </button>
+                      ) : (
+                        <button
+                          onClick={cancelSubscriptionFun}
+                          className="cursor-pointer text-xs bg-red-500 text-foreground px-2 ml-2 py-1 rounded-full"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </>
                   )}
                   {subscription.planName && (
                     <p className="text-xs text-muted-foreground mt-2">
@@ -139,6 +205,12 @@ export default function MembershipPage() {
                         )}`}
                       >
                         {subscription.planType}
+                        <Link
+                          to="/plans"
+                          className="text-xs text-blue-400 underline ml-2"
+                        >
+                          Change Plan ?
+                        </Link>
                       </p>
                     </>
                   )}
@@ -162,8 +234,7 @@ export default function MembershipPage() {
                   {subscription.amount !== undefined && (
                     <>
                       <p className="text-2xl font-bold text-primary">
-                        $
-                        {subscription.amount/100}
+                        ${subscription.amount / 100}
                       </p>
                       <p className="text-xs text-muted-foreground mt-2">
                         per {subscription.billingInterval || "month"}

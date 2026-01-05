@@ -31,9 +31,58 @@ export const createSubscription = async (priceId: string, paymentMethodId: strin
     }
 }
 
+export const changeSubscriptionPlan = async (priceId: string): Promise<ApiResponse<unknown>> => {
+    try {
+        const response = await apiClient.post(SUBSCRIPTION_ENDPOINTS.CHANGE_PLAN,
+            {
+                newPriceId: priceId
+            }
+        );
+        return response.data;
+    } catch (error) {
+        throw (error as any).response?.data || (error as Error).message;
+    }
+}
+
 export const getCurrentSubscription = async (): Promise<ApiResponse<ISubscription>> => {
     try {
         const response = await apiClient.get(SUBSCRIPTION_ENDPOINTS.CURRENT_SUBSCRIPTION);
+        return response.data;
+    } catch (error) {
+        throw (error as any).response?.data || (error as Error).message;
+    }
+}
+
+export const cancelSubscription = async (immediate: boolean): Promise<ApiResponse<unknown>> => {
+    try {
+        const response = await apiClient.post(SUBSCRIPTION_ENDPOINTS.CANCEL_SUBSCRIPTION,
+            {
+                immediate
+            });
+        return response.data;
+    } catch (error) {
+        throw (error as any).response?.data || (error as Error).message;
+    }
+}
+
+
+export const resumeSubscription = async (): Promise<ApiResponse<unknown>> => {
+    try {
+        const response = await apiClient.post(SUBSCRIPTION_ENDPOINTS.RESUME_SUBSCRIPTION);
+        return response.data;
+    } catch (error) {
+        throw (error as any).response?.data || (error as Error).message;
+    }
+}
+
+
+export const createPortal = async (return_url: string): Promise<ApiResponse<{url: string}>> => {
+
+    try {
+        const response = await apiClient.post(SUBSCRIPTION_ENDPOINTS.CREATE_PORTAL,
+            {
+                return_url
+            })
         return response.data;
     } catch (error) {
         throw (error as any).response?.data || (error as Error).message;
